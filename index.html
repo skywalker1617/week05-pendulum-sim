@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单摆物理模拟器 · Pendulum Lab</title>
+<style>
+  :root{
+    --bg:#1a1a24;
+    --panel:rgba(255,255,255,.045);
+    --line:rgba(255,255,255,.10);
+    --txt:#e8eaf2;
+    --dim:#8b90a8;
+    --accent:#4fd1c5;
+    --accent2:#7c8cff;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:radial-gradient(1200px 700px at 50% -10%, #23233a 0%, #1a1a24 55%, #15151d 100%);
+    color:var(--txt);
+    font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;
+    padding:18px 16px 26px;
+    min-height:100%;
+  }
+  header{width:100%;max-width:880px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+  h1{font-size:18px;font-weight:600;margin:0;letter-spacing:.5px;}
+  h1 span{color:var(--accent);}
+  header .meta{font-size:12px;color:var(--dim);}
+  .stage{
+    margin-top:12px;
+    width:100%;max-width:880px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));
+    box-shadow:0 18px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+    overflow:hidden;
+  }
+  canvas{display:block;width:100%;height:auto;}
+  .panel{
+    width:100%;max-width:880px;
+    margin-top:14px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--panel);
+    padding:16px 18px 14px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:14px 22px;
+    backdrop-filter:blur(6px);
+  }
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-bottom:6px;}
+  .ctrl label b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:99px;
+    background:linear-gradient(90deg,var(--accent2),var(--accent));outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#fff;border:3px solid var(--accent);cursor:pointer;
+    box-shadow:0 0 10px rgba(79,209,197,.75);
+    transition:transform .12s ease;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15);}
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--accent);cursor:pointer;
+  }
+  .actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:2px;border-top:1px dashed var(--line);margin-top:2px;}
+  button{
+    font-family:inherit;font-size:13px;color:var(--txt);cursor:pointer;
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--line);
+    border-radius:9px;padding:8px 16px;
+    transition:.18s;
+  }
+  button:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.25);transform:translateY(-1px);}
+  button.primary{
+    background:linear-gradient(135deg,#2c7a86,#2b5f9e);
+    border-color:rgba(79,209,197,.45);
+    box-shadow:0 6px 18px rgba(44,122,134,.35);
+  }
+  button.primary:hover{filter:brightness(1.15);}
+  .readout{margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;}
+  .readout b{color:var(--accent);font-weight:600;}
+  footer{margin-top:14px;font-size:12px;color:var(--dim);max-width:880px;text-align:center;line-height:1.7;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>单摆物理模拟器 <span>/ Pendulum Lab</span></h1>
+    <div class="meta">人机协同程序设计 · 第 5 周</div>
+  </header>
+
+  <div class="stage">
+    <canvas id="cv" width="900" height="520"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <label for="len">摆长 L <b><span id="lenVal">200</span> px</b></label>
+      <input type="range" id="len" min="100" max="350" step="1" value="200">
+    </div>
+    <div class="ctrl">
+      <label for="grav">重力 g <b><span id="gravVal">9.8</span> m/s²</b></label>
+      <input type="range" id="grav" min="1" max="25" step="0.1" value="9.8">
+    </div>
+    <div class="ctrl">
+      <label for="damp">阻尼 k <b><span id="dampVal">0.0015</span></b></label>
+      <input type="range" id="damp" min="0" max="0.01" step="0.0001" value="0.0015">
+    </div>
+    <div class="actions">
+      <button id="resetBtn" class="primary" type="button">重置摆动</button>
+      <button id="pauseBtn" type="button">暂停</button>
+      <div class="readout">
+        <span>θ = <b id="thetaOut">45.0</b>°</span>
+        <span>ω = <b id="omegaOut">0.00</b></span>
+        <span>T = <b id="periodOut">0.00</b> s</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>数值积分：半隐式欧拉法（Semi-implicit Euler） · 周期 T = 2π√(L<sub>px</sub> / g<sub>px</sub>) 由像素域换算 · 控制台 0 报错的稳定版</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- 常量与状态 ---------- */
+  var CANVAS = document.getElementById("cv");
+  var ctx = CANVAS.getContext("2d");
+  var PX_PER_METER = 60;              // 物理米 -> 屏幕像素的换算比例
+  var INITIAL_ANGLE = Math.PI / 4;    // 初始摆角 45°
+  var GRAVITY_PX = 9.8 * PX_PER_METER;
+
+  var state = {
+    L: 200,          // 摆长（像素）
+    g: 9.8,          // 重力加速度（m/s²）
+    k: 0.0015,       // 阻尼系数
+    theta: INITIAL_ANGLE,
+    omega: 0,
+    paused: false,
+    trail: []
+  };
+
+  /* ---------- DOM ---------- */
+  var lenEl = document.getElementById("len");
+  var gravEl = document.getElementById("grav");
+  var dampEl = document.getElementById("damp");
+  var lenVal = document.getElementById("lenVal");
+  var gravVal = document.getElementById("gravVal");
+  var dampVal = document.getElementById("dampVal");
+  var thetaOut = document.getElementById("thetaOut");
+  var omegaOut = document.getElementById("omegaOut");
+  var periodOut = document.getElementById("periodOut");
+  var resetBtn = document.getElementById("resetBtn");
+  var pauseBtn = document.getElementById("pauseBtn");
+
+  /* ---------- 物理：d²θ/dt² = -(g/L)·sinθ - k·ω ---------- */
+  function step(dt) {
+    var gPx = state.g * PX_PER_METER;
+    var alpha = -(gPx / state.L) * Math.sin(state.theta) - state.k * state.omega;
+    state.omega += alpha * dt;          // 半隐式欧拉：先更新角速度
+    state.theta += state.omega * dt;    // 再用新角速度更新角度，能量更稳定
+  }
+
+  /* ---------- 渲染 ---------- */
+  function pivot() {
+    return { x: CANVAS.width / 2, y: 90 };
+  }
+
+  function drawBackground() {
+    var w = CANVAS.width, h = CANVAS.height;
+    var grad = ctx.createRadialGradient(w / 2, h * 0.25, 40, w / 2, h * 0.4, w * 0.75);
+    grad.addColorStop(0, "#23233a");
+    grad.addColorStop(1, "#1a1a24");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // 极淡网格，增强科技感景深
+    ctx.strokeStyle = "rgba(255,255,255,0.035)";
+    ctx.lineWidth = 1;
+    for (var x = 0; x <= w; x += 45) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (var y = 0; y <= h; y += 45) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+  }
+
+  function drawTrail() {
+    if (state.trail.length < 2) return;
+    for (var i = 1; i < state.trail.length; i++) {
+      var a = i / state.trail.length;
+      ctx.beginPath();
+      ctx.moveTo(state.trail[i - 1].x, state.trail[i - 1].y);
+      ctx.lineTo(state.trail[i].x, state.trail[i].y);
+      ctx.strokeStyle = "rgba(79,209,197," + (a * 0.28).toFixed(3) + ")";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  function draw() {
+    drawBackground();
+
+    var p = pivot();
+    var bx = p.x + state.L * Math.sin(state.theta);
+    var by = p.y + state.L * Math.cos(state.theta);
+
+    // 摆动参考弧线
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, state.L, Math.PI / 2 - 0.85, Math.PI / 2 + 0.85);
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    drawTrail();
+
+    // 悬臂
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(bx, by);
+    ctx.strokeStyle = "rgba(200,210,255,0.55)";
+    ctx.lineWidth = 1.6;
+    ctx.shadowColor = "rgba(124,140,255,0.55)";
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // 悬挂点
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#9aa4d6";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(154,164,214,0.25)";
+    ctx.stroke();
+
+    // 摆球发光光效
+    var glow = ctx.createRadialGradient(bx, by, 2, bx, by, 34);
+    glow.addColorStop(0, "rgba(79,209,197,0.85)");
+    glow.addColorStop(0.35, "rgba(79,209,197,0.22)");
+    glow.addColorStop(1, "rgba(79,209,197,0)");
+    ctx.beginPath();
+    ctx.arc(bx, by, 34, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(bx, by, 13, 0, Math.PI * 2);
+    var bob = ctx.createRadialGradient(bx - 4, by - 5, 1, bx, by, 14);
+    bob.addColorStop(0, "#d8fffb");
+    bob.addColorStop(0.5, "#4fd1c5");
+    bob.addColorStop(1, "#1f7a86");
+    ctx.fillStyle = bob;
+    ctx.fill();
+
+    // 摆角标注
+    ctx.beginPath();
+    ctx.setLineDash([4, 5]);
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x, p.y + state.L + 26);
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    state.trail.push({ x: bx, y: by });
+    if (state.trail.length > 60) state.trail.shift();
+  }
+
+  /* ---------- 读数 ---------- */
+  function updateReadout() {
+    thetaOut.textContent = (state.theta * 180 / Math.PI).toFixed(1);
+    omegaOut.textContent = state.omega.toFixed(2);
+    var gPx = state.g * PX_PER_METER;
+    periodOut.textContent = (2 * Math.PI * Math.sqrt(state.L / gPx)).toFixed(2);
+  }
+
+  /* ---------- 主循环 ---------- */
+  var last = performance.now();
+  function loop(now) {
+    var dt = Math.min((now - last) / 1000, 0.05); // 夹住 dt，防止切标签页后跳变
+    last = now;
+    if (!state.paused) {
+      // 子步长细分，保证大摆长/大重力下数值稳定
+      var sub = 4;
+      for (var i = 0; i < sub; i++) step(dt / sub);
+    }
+    draw();
+    updateReadout();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- 交互绑定 ---------- */
+  function resetAnimation() {
+    state.theta = INITIAL_ANGLE;
+    state.omega = 0;
+    state.trail.length = 0;
+    state.paused = false;
+    pauseBtn.textContent = "暂停";
+    draw();
+    updateReadout();
+  }
+
+  resetBtn.addEventListener("click", resetAnimation);
+
+  pauseBtn.addEventListener("click", function () {
+    state.paused = !state.paused;
+    pauseBtn.textContent = state.paused ? "继续" : "暂停";
+  });
+
+  lenEl.addEventListener("input", function () {
+    state.L = parseFloat(lenEl.value);
+    lenVal.textContent = state.L.toFixed(0);
+    state.trail.length = 0;
+    updateReadout();
+  });
+
+  gravEl.addEventListener("input", function () {
+    state.g = parseFloat(gravEl.value);
+    gravVal.textContent = state.g.toFixed(1);
+    updateReadout();
+  });
+
+  dampEl.addEventListener("input", function () {
+    state.k = parseFloat(dampEl.value);
+    dampVal.textContent = state.k.toFixed(4);
+  });
+
+  // 初始化 UI 与首批参数
+  lenEl.dispatchEvent(new Event("input"));
+  gravEl.dispatchEvent(new Event("input"));
+  dampEl.dispatchEvent(new Event("input"));
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
