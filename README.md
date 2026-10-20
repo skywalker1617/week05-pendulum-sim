@@ -14,7 +14,8 @@
 
 - [x] 任务二：单摆物理模拟器 MVP —— 深灰科技背景 (#1a1a24)、摆球发光光效、Canvas 渲染、requestAnimationFrame 驱动
 - [x] 任务三：参数滑块绑定 —— 摆长 (100~350px)、重力 (1~25)、阻尼 (0.000~0.010) 实时联动，“重置摆动”按钮精准复位 45°
-- [x] 任务四：ReAct 闭环自愈 —— 证据驱动排错，修复重置按钮运行时未定义报错，控制台 0 报错
+- [x] 任务四：ReAct 闭环自愈演练 —— 演练了指导书 starter_code 故障页的
+      `Uncaught ReferenceError: resetAnimation is not defined` 排错流程：提取控制台红字堆栈 → 四段式自愈 Prompt → Reflection 根因定位（函数作用域与事件绑定）→ 外科手术式修复。本仓库最终版 `index.html` 将按钮处理函数收敛为 `resetAnimation` 并用 `addEventListener` 显式绑定，刷新后控制台 0 报错，重置功能正常。
 - [x] 物理内核：半隐式欧拉积分 + 子步长细分，α = -(g/L)·sinθ - k·ω
 - [x] 附加：暂停/继续按钮、实时 θ/ω/T 读数、摆动拖尾光效
 
